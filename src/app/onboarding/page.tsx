@@ -107,7 +107,7 @@ export default function OnboardingPage() {
     setLoading(true)
     
     // Calculate training start date (12 weeks before event)
-    const eventDate = new Date('2025-04-23')
+    const eventDate = new Date('2026-04-23')
     const startDate = new Date(eventDate)
     startDate.setDate(startDate.getDate() - 84)
 
