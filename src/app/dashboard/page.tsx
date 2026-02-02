@@ -151,3 +151,93 @@ export default function DashboardPage() {
             <button onClick={() => setViewWeek(w => Math.max(1, w - 1))} disabled={viewWeek === 1} className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30"><ChevronLeft className="w-5 h-5" /></button>
             <div className="text-center"><h2 className="text-lg font-bold text-gray-900">Week {viewWeek}</h2><p className="text-sm text-brand-coral font-medium">{phaseName()}</p></div>
             <button onClick={() => setViewWeek(w => Math.min(12, w + 1))} disabled={viewWeek === 12} className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30"><ChevronRight className="w-5 h-5" /></button>
+          </div>
+          <div className="mt-3">
+            <div className="flex justify-between text-xs text-gray-500 mb-1"><span>{weekCompleted}/{weekTotal} sessions</span><span>{progressPercent}%</span></div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-brand-coral rounded-full transition-all" style={{ width: `${progressPercent}%` }} /></div>
+          </div>
+        </div>
+
+        {weeklyContent?.quote && (
+          <div className="bg-white rounded-2xl p-4">
+            <p className="text-gray-700 italic text-sm">&quot;{weeklyContent.quote}&quot;</p>
+            {weeklyContent.quote_author && <p className="text-gray-400 text-xs mt-1">— {weeklyContent.quote_author}</p>}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {weekPlan.sessions.map((session) => {
+            const completed = isCompleted(viewWeek, session.dayIndex)
+            const isRest = session.type === 'rest'
+            return (
+              <button key={session.dayIndex} onClick={() => handleSessionClick(session)} disabled={isRest} className={`w-full bg-white rounded-xl p-3 flex items-center gap-3 text-left transition ${completed ? 'opacity-60' : ''} ${isRest ? 'cursor-default' : 'hover:shadow-md'}`}>
+                <div className="flex-shrink-0">
+                  {isRest ? <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-lg">{session.icon}</div> : completed ? <CheckCircle className="w-10 h-10 text-green-500" /> : <div className="w-10 h-10 bg-gray-50 border-2 border-gray-200 rounded-xl flex items-center justify-center text-lg">{session.icon}</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-400">{session.day}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${session.type === 'rest' ? 'bg-gray-100 text-gray-400' : session.type === 'intervals' ? 'bg-orange-100 text-orange-600' : session.type === 'strength' ? 'bg-amber-100 text-amber-700' : session.type === 'long' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>{session.type}</span>
+                  </div>
+                  <p className={`font-medium text-gray-900 ${completed ? 'line-through' : ''}`}>{session.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{session.description}</p>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  {session.duration > 0 && <div className="flex items-center gap-1 text-xs text-gray-400"><Clock className="w-3 h-3" /><span>{session.duration}m</span></div>}
+                  {session.zone && <p className="text-xs text-brand-coral font-medium">{session.zone}</p>}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {weeklyContent?.nutrition_advice && (
+          <div className="bg-green-50 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1"><Flame className="w-4 h-4 text-green-600" /><span className="text-sm font-semibold text-green-800">Nutrition Tip</span></div>
+            <p className="text-sm text-green-700">{weeklyContent.nutrition_advice}</p>
+          </div>
+        )}
+
+        <a href={WHATSAPP_GROUP_LINK} target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl p-4 hover:shadow-md transition">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center"><MessageCircle className="w-5 h-5 text-white" /></div>
+            <div><p className="font-medium text-gray-900">Join the WhatsApp Group</p><p className="text-sm text-gray-500">Connect with fellow riders</p></div>
+            <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+          </div>
+        </a>
+      </main>
+
+      {selectedSession && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between bg-white sticky top-0">
+              <div><h3 className="font-bold text-gray-900 text-lg">{selectedSession.name}</h3><p className="text-sm text-gray-500">{selectedSession.description}</p></div>
+              <button onClick={() => setSelectedSession(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex gap-3">
+                {selectedSession.duration > 0 && <div className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-1 rounded-full"><Clock className="w-4 h-4 text-gray-500" /><span>{selectedSession.duration} min</span></div>}
+                {selectedSession.zone && <div className="text-sm bg-brand-coral/10 text-brand-coral px-3 py-1 rounded-full font-medium">{selectedSession.zone}</div>}
+              </div>
+              {selectedSession.type === 'strength' && getStrengthRoutine(selectedSession.name) && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 rounded-xl p-4"><h4 className="font-semibold text-blue-800 mb-2">Warm-up (3 min)</h4><ul className="space-y-1">{getStrengthRoutine(selectedSession.name)!.warmup.map((item, i) => <li key={i} className="text-sm text-blue-700">• {item}</li>)}</ul></div>
+                  <div><h4 className="font-semibold text-gray-800 mb-3">Circuit (2 rounds)</h4><p className="text-xs text-brand-coral mb-3">Rest 30-60 seconds between exercises</p><div className="space-y-3">{getStrengthRoutine(selectedSession.name)!.exercises.map((ex, i) => <div key={i} className="bg-gray-50 rounded-xl p-3"><div className="flex justify-between items-start"><span className="font-medium text-gray-900">{i + 1}. {ex.name}</span><span className="text-sm font-semibold text-brand-coral">{ex.reps}</span></div><p className="text-xs text-gray-500 mt-1">{ex.notes}</p></div>)}</div></div>
+                  <div className="bg-green-50 rounded-xl p-4"><h4 className="font-semibold text-green-800 mb-2">Cool-down</h4><ul className="space-y-1">{getStrengthRoutine(selectedSession.name)!.cooldown.map((item, i) => <li key={i} className="text-sm text-green-700">• {item}</li>)}</ul></div>
+                </div>
+              )}
+              {selectedSession.type !== 'strength' && selectedSession.type !== 'rest' && (
+                <div className="bg-gray-50 rounded-xl p-4"><h4 className="font-semibold text-gray-800 mb-2">Session Details</h4><p className="text-sm text-gray-600">{selectedSession.type === 'intervals' ? 'Warm up for 15 minutes in Zone 2, then complete the interval set. Focus on maintaining consistent power through each effort. Recover fully between intervals. Cool down for 10 minutes.' : selectedSession.type === 'endurance' ? 'Keep this ride in Zone 2 throughout. You should be able to hold a conversation. Focus on smooth pedalling and staying relaxed. Practice your hydration and nutrition strategy.' : selectedSession.type === 'long' ? 'This is your key endurance builder. Stay in Zone 2, eat every 45 minutes after the first hour. Practice everything you will do on event day — same food, same pacing. If you have hills available, include them.' : 'Easy spin to keep the legs moving. No pressure on this one — high cadence, low resistance. Just enjoy the ride.'}</p></div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-white">
+              <button onClick={markComplete} disabled={completing} className={`w-full py-3 font-semibold rounded-xl transition flex items-center justify-center gap-2 ${sessionCompleted ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-brand-coral text-white hover:bg-brand-coral-dark'}`}>
+                {completing ? <Loader2 className="w-5 h-5 animate-spin" /> : sessionCompleted ? <><CheckCircle className="w-5 h-5" />Completed — Tap to Undo</> : <><CheckCircle className="w-5 h-5" />Mark as Complete</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
