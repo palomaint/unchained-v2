@@ -48,7 +48,7 @@ export default function DashboardPage() {
       return
     }
     loadGuest(guestId)
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (viewWeek) loadWeeklyContent(viewWeek)
@@ -169,7 +169,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <header className="bg-white border-b px-4 py-3 sticky top-0 z-40">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <img src={LOGO_URL} alt="Pedal & Pause" className="h-8" />
@@ -183,7 +182,6 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-lg mx-auto p-4 space-y-4">
-        {/* Countdown */}
         <div className="bg-gradient-to-r from-brand-coral to-brand-coral-dark rounded-2xl p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -194,7 +192,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Week Selector */}
         <div className="bg-white rounded-2xl p-4">
           <div className="flex items-center justify-between mb-2">
             <button
@@ -217,7 +214,6 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Progress bar */}
           <div className="mt-3">
             <div className="flex justify-between text-xs text-gray-500 mb-1">
               <span>{weekCompleted}/{weekTotal} sessions</span>
@@ -232,17 +228,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Weekly Quote */}
         {weeklyContent?.quote && (
           <div className="bg-white rounded-2xl p-4">
-            <p className="text-gray-700 italic text-sm">"{weeklyContent.quote}"</p>
+            <p className="text-gray-700 italic text-sm">&quot;{weeklyContent.quote}&quot;</p>
             {weeklyContent.quote_author && (
               <p className="text-gray-400 text-xs mt-1">— {weeklyContent.quote_author}</p>
             )}
           </div>
         )}
 
-        {/* Sessions */}
         <div className="space-y-2">
           {weekPlan.sessions.map((session) => {
             const completed = isCompleted(viewWeek, session.dayIndex)
@@ -307,7 +301,6 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Nutrition Tip */}
         {weeklyContent?.nutrition_advice && (
           <div className="bg-green-50 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -318,7 +311,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Strength Training Link */}
         <button
           onClick={() => router.push('/strength')}
           className="w-full bg-white rounded-2xl p-4 hover:shadow-md transition text-left"
@@ -335,7 +327,6 @@ export default function DashboardPage() {
           </div>
         </button>
 
-        {/* WhatsApp Link */}
         
           href={WHATSAPP_GROUP_LINK}
           target="_blank"
