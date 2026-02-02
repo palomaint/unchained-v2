@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { LOGO_URL } from '@/lib/brand'
+import { LOGO_URL, UNCHAINED_START_DATE } from '@/lib/brand'
 import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react'
 
 const questions = [
@@ -57,6 +57,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
   const [guestId, setGuestId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('unchained_guest_id')
@@ -105,26 +106,30 @@ export default function OnboardingPage() {
     if (!guestId || !profile || !selectedDistance || !selectedSpeed) return
 
     setLoading(true)
+    setError(null)
     
-    // Calculate training start date (12 weeks before event)
-    const eventDate = new Date('2026-04-23')
+    // Calculate training start date (12 weeks / 84 days before event)
+    const eventDate = new Date(UNCHAINED_START_DATE)
     const startDate = new Date(eventDate)
     startDate.setDate(startDate.getDate() - 84)
+    const startDateStr = startDate.toISOString().split('T')[0]
 
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('guests')
       .update({
         profile_type: profile,
         selected_distance: selectedDistance,
         selected_speed: selectedSpeed,
-        training_start_date: startDate.toISOString().split('T')[0],
+        training_start_date: startDateStr,
       })
       .eq('id', guestId)
 
-    if (!error) {
-      router.push('/dashboard')
-    } else {
+    if (updateError) {
+      console.error('Update error:', updateError)
+      setError('Failed to save. Please try again.')
       setLoading(false)
+    } else {
+      router.push('/dashboard')
     }
   }
 
@@ -208,7 +213,7 @@ export default function OnboardingPage() {
             <span className="text-2xl font-bold text-white">{profile}</span>
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-1">
-            You're a {profileInfo[profile!].name}!
+            You are a {profileInfo[profile!].name}!
           </h2>
           <p className="text-gray-600">{profileInfo[profile!].description}</p>
         </div>
@@ -217,69 +222,3 @@ export default function OnboardingPage() {
         <h3 className="text-lg font-semibold text-gray-900 mb-3">Choose your distance</h3>
         <div className="grid grid-cols-2 gap-3 mb-6">
           <button
-            onClick={() => setSelectedDistance('160km')}
-            className={`p-4 rounded-xl border-2 text-center transition ${
-              selectedDistance === '160km' ? 'border-brand-coral bg-brand-coral/5' : 'border-gray-200'
-            }`}
-          >
-            <p className="text-2xl font-bold">160 km</p>
-            <p className="text-sm text-gray-500">2,520m climbing</p>
-          </button>
-          <button
-            onClick={() => setSelectedDistance('196km')}
-            className={`p-4 rounded-xl border-2 text-center transition ${
-              selectedDistance === '196km' ? 'border-brand-coral bg-brand-coral/5' : 'border-gray-200'
-            }`}
-          >
-            <p className="text-2xl font-bold">196 km</p>
-            <p className="text-sm text-gray-500">3,200m climbing</p>
-          </button>
-        </div>
-
-        {/* Speed Selection */}
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">Choose your pace</h3>
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          <button
-            onClick={() => setSelectedSpeed(20)}
-            className={`p-4 rounded-xl border-2 text-center transition ${
-              selectedSpeed === 20 ? 'border-brand-coral bg-brand-coral/5' : 'border-gray-200'
-            }`}
-          >
-            <p className="text-2xl font-bold">20 km/h</p>
-            <p className="text-sm text-gray-500">Steady pace</p>
-          </button>
-          <button
-            onClick={() => setSelectedSpeed(23)}
-            className={`p-4 rounded-xl border-2 text-center transition ${
-              selectedSpeed === 23 ? 'border-brand-coral bg-brand-coral/5' : 'border-gray-200'
-            }`}
-          >
-            <p className="text-2xl font-bold">23 km/h</p>
-            <p className="text-sm text-gray-500">Faster pace</p>
-          </button>
-        </div>
-
-        <button
-          onClick={handleComplete}
-          disabled={!selectedDistance || !selectedSpeed || loading}
-          className="w-full py-3 bg-brand-coral text-white font-semibold rounded-xl hover:bg-brand-coral-dark transition disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <>
-              Start Training <ChevronRight className="w-5 h-5" />
-            </>
-          )}
-        </button>
-
-        <button
-          onClick={() => { setStep(0); setAnswers({}); setProfile(null); }}
-          className="mt-4 text-gray-500 text-sm mx-auto block"
-        >
-          Retake quiz
-        </button>
-      </main>
-    </div>
-  )
-}
