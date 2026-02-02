@@ -9,13 +9,13 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
-  Circle,
   Clock,
   Mountain,
   Flame,
   MessageCircle,
   LogOut,
   Loader2,
+  Dumbbell,
 } from 'lucide-react'
 
 function getDaysUntil(): number {
@@ -79,7 +79,6 @@ export default function DashboardPage() {
       : 1
     setViewWeek(currentWeek)
 
-    // Load completed sessions
     const { data: sessions } = await supabase
       .from('completed_sessions')
       .select('*')
@@ -112,7 +111,6 @@ export default function DashboardPage() {
     const completed = isCompleted(viewWeek, session.dayIndex)
 
     if (completed) {
-      // Remove completion
       const target = completedSessions.find(
         s => s.week_number === viewWeek && s.day_index === session.dayIndex
       )
@@ -121,7 +119,6 @@ export default function DashboardPage() {
         setCompletedSessions(prev => prev.filter(s => s.id !== target.id))
       }
     } else {
-      // Add completion
       const { data } = await supabase
         .from('completed_sessions')
         .insert({
@@ -321,8 +318,25 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Strength Training Link */}
+        <button
+          onClick={() => router.push('/strength')}
+          className="w-full bg-white rounded-2xl p-4 hover:shadow-md transition text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+              <Dumbbell className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Strength Routines</p>
+              <p className="text-sm text-gray-500">Home exercises for cyclists</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+          </div>
+        </button>
+
         {/* WhatsApp Link */}
-        <a
+        
           href={WHATSAPP_GROUP_LINK}
           target="_blank"
           rel="noopener noreferrer"
