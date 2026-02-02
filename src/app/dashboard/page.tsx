@@ -15,7 +15,7 @@ import {
   MessageCircle,
   LogOut,
   Loader2,
-  Dumbbell,
+  X,
 } from 'lucide-react'
 
 function getDaysUntil(): number {
@@ -32,6 +32,53 @@ function getCurrentWeek(startDate: string): number {
   return Math.max(1, Math.min(12, week))
 }
 
+const strengthRoutines = {
+  A: {
+    name: 'Strength A',
+    subtitle: 'Cycling-Specific Power',
+    duration: 25,
+    warmup: [
+      'March in place - 1 min',
+      'Bodyweight squats - 10 reps',
+      'Glute bridges - 10 reps',
+    ],
+    exercises: [
+      { name: 'Goblet Squats', reps: '12 reps', notes: 'Use 5L water bottle or backpack' },
+      { name: 'Glute Bridges', reps: '15 reps', notes: 'Squeeze at top, hold 2 seconds' },
+      { name: 'Step-Ups', reps: '10 each leg', notes: 'Use sturdy chair or stairs' },
+      { name: 'Plank', reps: '45 seconds', notes: 'Keep hips level' },
+      { name: 'Single-Leg Glute Bridge', reps: '10 each side', notes: 'Keep hips level' },
+      { name: 'Clamshells', reps: '15 each side', notes: 'Use resistance band if available' },
+    ],
+    cooldown: [
+      'Hip flexor stretch - 45s each side',
+      'Hamstring stretch - 30s each side',
+    ],
+  },
+  B: {
+    name: 'Strength B',
+    subtitle: 'Core Focus',
+    duration: 20,
+    warmup: [
+      'Cat-cow stretches - 10 reps',
+      'Torso twists - 10 each side',
+    ],
+    exercises: [
+      { name: 'Plank', reps: '45 seconds', notes: 'Forearms on ground' },
+      { name: 'Side Plank', reps: '25s each side', notes: 'Stack or stagger feet' },
+      { name: 'Dead Bug', reps: '10 each side', notes: 'Keep lower back pressed down' },
+      { name: 'Bird Dog', reps: '10 each side', notes: 'Hold 2 seconds at extension' },
+      { name: 'Single-Leg Balance', reps: '30s each leg', notes: 'Close eyes for difficulty' },
+      { name: 'Bicycle Crunches', reps: '20 total', notes: 'Slow and controlled' },
+    ],
+    cooldown: [
+      '90/90 hip stretch - 45s each side',
+      'Spine twist - 30s each side',
+      'Child\'s pose - 45s',
+    ],
+  },
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [guest, setGuest] = useState<Guest | null>(null)
@@ -39,7 +86,8 @@ export default function DashboardPage() {
   const [viewWeek, setViewWeek] = useState(1)
   const [completedSessions, setCompletedSessions] = useState<CompletedSession[]>([])
   const [weeklyContent, setWeeklyContent] = useState<WeeklyContent | null>(null)
-  const [toggling, setToggling] = useState<number | null>(null)
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null)
+  const [completing, setCompleting] = useState(false)
 
   useEffect(() => {
     const guestId = localStorage.getItem('unchained_guest_id')
@@ -104,15 +152,20 @@ export default function DashboardPage() {
     )
   }
 
-  const toggleSession = async (session: Session) => {
-    if (!guest || session.type === 'rest') return
+  const handleSessionClick = (session: Session) => {
+    if (session.type === 'rest') return
+    setSelectedSession(session)
+  }
+
+  const markComplete = async () => {
+    if (!guest || !selectedSession) return
     
-    setToggling(session.dayIndex)
-    const completed = isCompleted(viewWeek, session.dayIndex)
+    setCompleting(true)
+    const completed = isCompleted(viewWeek, selectedSession.dayIndex)
 
     if (completed) {
       const target = completedSessions.find(
-        s => s.week_number === viewWeek && s.day_index === session.dayIndex
+        s => s.week_number === viewWeek && s.day_index === selectedSession.dayIndex
       )
       if (target) {
         await supabase.from('completed_sessions').delete().eq('id', target.id)
@@ -124,15 +177,16 @@ export default function DashboardPage() {
         .insert({
           guest_id: guest.id,
           week_number: viewWeek,
-          day_index: session.dayIndex,
-          session_type: session.type,
+          day_index: selectedSession.dayIndex,
+          session_type: selectedSession.type,
         })
         .select()
         .single()
 
       if (data) setCompletedSessions(prev => [...prev, data])
     }
-    setToggling(null)
+    setCompleting(false)
+    setSelectedSession(null)
   }
 
   const handleLogout = () => {
@@ -166,6 +220,14 @@ export default function DashboardPage() {
     if (viewWeek === 11) return 'Sharpening'
     return 'Taper'
   }
+
+  const getStrengthRoutine = (sessionName: string) => {
+    if (sessionName.includes('Strength A')) return strengthRoutines.A
+    if (sessionName.includes('Strength B')) return strengthRoutines.B
+    return null
+  }
+
+  const sessionCompleted = selectedSession ? isCompleted(viewWeek, selectedSession.dayIndex) : false
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -241,21 +303,18 @@ export default function DashboardPage() {
           {weekPlan.sessions.map((session) => {
             const completed = isCompleted(viewWeek, session.dayIndex)
             const isRest = session.type === 'rest'
-            const isLoading = toggling === session.dayIndex
 
             return (
               <button
                 key={session.dayIndex}
-                onClick={() => toggleSession(session)}
-                disabled={isRest || isLoading}
+                onClick={() => handleSessionClick(session)}
+                disabled={isRest}
                 className={`w-full bg-white rounded-xl p-3 flex items-center gap-3 text-left transition ${
                   completed ? 'opacity-60' : ''
                 } ${isRest ? 'cursor-default' : 'hover:shadow-md'}`}
               >
                 <div className="flex-shrink-0">
-                  {isLoading ? (
-                    <Loader2 className="w-10 h-10 text-brand-coral animate-spin" />
-                  ) : isRest ? (
+                  {isRest ? (
                     <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-lg">
                       {session.icon}
                     </div>
@@ -311,22 +370,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <button
-          onClick={() => router.push('/strength')}
-          className="w-full bg-white rounded-2xl p-4 hover:shadow-md transition text-left"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-              <Dumbbell className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Strength Routines</p>
-              <p className="text-sm text-gray-500">Home exercises for cyclists</p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
-          </div>
-        </button>
-
         
           href={WHATSAPP_GROUP_LINK}
           target="_blank"
@@ -345,6 +388,150 @@ export default function DashboardPage() {
           </div>
         </a>
       </main>
+
+      {/* Session Detail Modal */}
+      {selectedSession && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="p-4 border-b flex items-center justify-between bg-white sticky top-0">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">{selectedSession.name}</h3>
+                <p className="text-sm text-gray-500">{selectedSession.description}</p>
+              </div>
+              <button 
+                onClick={() => setSelectedSession(null)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Session Info */}
+              <div className="flex gap-3">
+                {selectedSession.duration > 0 && (
+                  <div className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-1 rounded-full">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span>{selectedSession.duration} min</span>
+                  </div>
+                )}
+                {selectedSession.zone && (
+                  <div className="text-sm bg-brand-coral/10 text-brand-coral px-3 py-1 rounded-full font-medium">
+                    {selectedSession.zone}
+                  </div>
+                )}
+              </div>
+
+              {/* Strength Routine Details */}
+              {selectedSession.type === 'strength' && getStrengthRoutine(selectedSession.name) && (
+                <div className="space-y-4">
+                  {/* Warm-up */}
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <h4 className="font-semibold text-blue-800 mb-2">Warm-up (3 min)</h4>
+                    <ul className="space-y-1">
+                      {getStrengthRoutine(selectedSession.name)!.warmup.map((item, i) => (
+                        <li key={i} className="text-sm text-blue-700">• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Exercises */}
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-3">Circuit (2 rounds)</h4>
+                    <p className="text-xs text-brand-coral mb-3">Rest 30-60 seconds between exercises</p>
+                    <div className="space-y-3">
+                      {getStrengthRoutine(selectedSession.name)!.exercises.map((ex, i) => (
+                        <div key={i} className="bg-gray-50 rounded-xl p-3">
+                          <div className="flex justify-between items-start">
+                            <span className="font-medium text-gray-900">{i + 1}. {ex.name}</span>
+                            <span className="text-sm font-semibold text-brand-coral">{ex.reps}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{ex.notes}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Cool-down */}
+                  <div className="bg-green-50 rounded-xl p-4">
+                    <h4 className="font-semibold text-green-800 mb-2">Cool-down</h4>
+                    <ul className="space-y-1">
+                      {getStrengthRoutine(selectedSession.name)!.cooldown.map((item, i) => (
+                        <li key={i} className="text-sm text-green-700">• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Cycling Session Details */}
+              {selectedSession.type !== 'strength' && selectedSession.type !== 'rest' && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-800 mb-2">Session Details</h4>
+                  <p className="text-sm text-gray-600">
+                    {selectedSession.type === 'intervals' && (
+                      <>
+                        Warm up for 15 minutes in Zone 2, then complete the interval set. 
+                        Focus on maintaining consistent power through each effort. 
+                        Recover fully between intervals. Cool down for 10 minutes.
+                      </>
+                    )}
+                    {selectedSession.type === 'endurance' && (
+                      <>
+                        Keep this ride in Zone 2 throughout. You should be able to hold a conversation. 
+                        Focus on smooth pedalling and staying relaxed. 
+                        Practice your hydration and nutrition strategy.
+                      </>
+                    )}
+                    {selectedSession.type === 'long' && (
+                      <>
+                        This is your key endurance builder. Stay in Zone 2, eat every 45 minutes after the first hour. 
+                        Practice everything you will do on event day — same food, same pacing. 
+                        If you have hills available, include them.
+                      </>
+                    )}
+                    {selectedSession.type === 'cycling' && (
+                      <>
+                        Easy spin to keep the legs moving. No pressure on this one — 
+                        high cadence, low resistance. Just enjoy the ride.
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t bg-white">
+              <button
+                onClick={markComplete}
+                disabled={completing}
+                className={`w-full py-3 font-semibold rounded-xl transition flex items-center justify-center gap-2 ${
+                  sessionCompleted
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-brand-coral text-white hover:bg-brand-coral-dark'
+                }`}
+              >
+                {completing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : sessionCompleted ? (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Completed — Tap to Undo
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Mark as Complete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
