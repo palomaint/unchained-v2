@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase, type Guest, type CompletedSession, type WeeklyContent } from '@/lib/supabase'
 import { getWeek, type Session } from '@/data/training-plans'
 import { LOGO_URL, UNCHAINED_START_DATE, WHATSAPP_GROUP_LINK } from '@/lib/brand'
-import { ChevronLeft, ChevronRight, CheckCircle, Clock, Mountain, Flame, MessageCircle, LogOut, Loader2, X, Map, RotateCcw, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle, Clock, Mountain, Flame, MessageCircle, LogOut, Loader2, X, Map, RotateCcw, AlertTriangle, Share2, PartyPopper } from 'lucide-react'
 
 function getDaysUntil(): number {
   const event = new Date(UNCHAINED_START_DATE)
@@ -54,6 +54,15 @@ const strengthRoutines = {
   },
 }
 
+const milestoneMessages = [
+  { threshold: 1, message: "First session done! The journey begins 🚀" },
+  { threshold: 4, message: "First week complete! Building momentum 💪" },
+  { threshold: 12, message: "3 weeks in! You're getting stronger 🔥" },
+  { threshold: 24, message: "Halfway there! Keep pushing 🏔️" },
+  { threshold: 36, message: "75% complete! The finish line is in sight 🎯" },
+  { threshold: 48, message: "Training complete! Ready for UNCHAINED! 🎉" },
+]
+
 export default function DashboardPage() {
   const router = useRouter()
   const [guest, setGuest] = useState<Guest | null>(null)
@@ -65,6 +74,8 @@ export default function DashboardPage() {
   const [completing, setCompleting] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [justCompleted, setJustCompleted] = useState(false)
+  const [milestone, setMilestone] = useState<string | null>(null)
 
   useEffect(() => {
     const guestId = localStorage.getItem('unchained_guest_id')
@@ -93,7 +104,18 @@ export default function DashboardPage() {
 
   const isCompleted = (weekNum: number, dayIdx: number) => completedSessions.some(s => s.week_number === weekNum && s.day_index === dayIdx)
 
-  const handleSessionClick = (session: Session) => { if (session.type !== 'rest') setSelectedSession(session) }
+  const handleSessionClick = (session: Session) => { 
+    if (session.type !== 'rest') {
+      setSelectedSession(session)
+      setJustCompleted(false)
+      setMilestone(null)
+    }
+  }
+
+  const checkMilestone = (newTotal: number) => {
+    const hit = milestoneMessages.find(m => m.threshold === newTotal)
+    if (hit) setMilestone(hit.message)
+  }
 
   const markComplete = async () => {
     if (!guest || !selectedSession) return
@@ -105,12 +127,31 @@ export default function DashboardPage() {
         await supabase.from('completed_sessions').delete().eq('id', target.id)
         setCompletedSessions(prev => prev.filter(s => s.id !== target.id))
       }
+      setCompleting(false)
+      setSelectedSession(null)
     } else {
       const { data } = await supabase.from('completed_sessions').insert({ guest_id: guest.id, week_number: viewWeek, day_index: selectedSession.dayIndex, session_type: selectedSession.type }).select().single()
-      if (data) setCompletedSessions(prev => [...prev, data])
+      if (data) {
+        const newSessions = [...completedSessions, data]
+        setCompletedSessions(newSessions)
+        checkMilestone(newSessions.length)
+        setJustCompleted(true)
+      }
+      setCompleting(false)
     }
-    setCompleting(false)
-    setSelectedSession(null)
+  }
+
+  const shareToWhatsApp = () => {
+    if (!selectedSession) return
+    const totalDone = completedSessions.length
+    const emoji = selectedSession.type === 'strength' ? '💪' : selectedSession.type === 'long' ? '🏔️' : selectedSession.type === 'intervals' ? '🔥' : '🚴'
+    let message = `${emoji} Just completed Week ${viewWeek} - ${selectedSession.name}! `
+    if (milestone) {
+      message += `\n\n🎉 ${milestone}`
+    }
+    message += `\n\n${totalDone} sessions done. #UNCHAINED`
+    const encoded = encodeURIComponent(message)
+    window.open(`https://wa.me/?text=${encoded}`, '_blank')
   }
 
   const handleReset = async () => {
@@ -137,6 +178,7 @@ export default function DashboardPage() {
   const phaseName = () => { if (viewWeek <= 3) return 'Foundation'; if (viewWeek === 4) return 'Recovery'; if (viewWeek <= 7) return 'Base Building'; if (viewWeek === 8) return 'Recovery'; if (viewWeek <= 10) return 'Build'; if (viewWeek === 11) return 'Sharpening'; return 'Taper' }
   const getStrengthRoutine = (name: string) => { if (name.includes('Strength A')) return strengthRoutines.A; if (name.includes('Strength B')) return strengthRoutines.B; return null }
   const sessionCompleted = selectedSession ? isCompleted(viewWeek, selectedSession.dayIndex) : false
+  const weekIsComplete = progressPercent === 100
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -174,6 +216,25 @@ export default function DashboardPage() {
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-brand-coral rounded-full transition-all" style={{ width: `${progressPercent}%` }} /></div>
           </div>
         </div>
+
+        {/* Week Complete Celebration */}
+        {weekIsComplete && (
+          <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-4 text-white">
+            <div className="flex items-center gap-3">
+              <PartyPopper className="w-8 h-8" />
+              <div className="flex-1">
+                <p className="font-bold">Week {viewWeek} Complete! 🎉</p>
+                <p className="text-sm text-white/80">Great work! Share your progress?</p>
+              </div>
+              <button onClick={() => {
+                const message = encodeURIComponent(`✅ Week ${viewWeek} complete! ${totalCompleted} total sessions done. Let's go! 💪 #UNCHAINED`)
+                window.open(`https://wa.me/?text=${message}`, '_blank')
+              }} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition">
+                <Share2 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {weeklyContent?.quote && (
           <div className="bg-white rounded-2xl p-4">
@@ -241,6 +302,19 @@ export default function DashboardPage() {
               <button onClick={() => setSelectedSession(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Just Completed Celebration */}
+              {justCompleted && (
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl p-4 text-white text-center">
+                  <PartyPopper className="w-8 h-8 mx-auto mb-2" />
+                  <p className="font-bold text-lg">Nice work! 🎉</p>
+                  {milestone && <p className="text-sm text-white/90 mt-1">{milestone}</p>}
+                  <button onClick={shareToWhatsApp} className="mt-3 bg-white text-green-600 font-semibold px-4 py-2 rounded-lg inline-flex items-center gap-2 hover:bg-green-50 transition">
+                    <Share2 className="w-4 h-4" />
+                    Share to WhatsApp
+                  </button>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 {selectedSession.duration > 0 && <div className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-1 rounded-full"><Clock className="w-4 h-4 text-gray-500" /><span>{selectedSession.duration} min</span></div>}
                 {selectedSession.zone && <div className="text-sm bg-brand-coral/10 text-brand-coral px-3 py-1 rounded-full font-medium">{selectedSession.zone}</div>}
@@ -252,14 +326,20 @@ export default function DashboardPage() {
                   <div className="bg-green-50 rounded-xl p-4"><h4 className="font-semibold text-green-800 mb-2">Cool-down</h4><ul className="space-y-1">{getStrengthRoutine(selectedSession.name)!.cooldown.map((item, i) => <li key={i} className="text-sm text-green-700">• {item}</li>)}</ul></div>
                 </div>
               )}
-              {selectedSession.type !== 'strength' && selectedSession.type !== 'rest' && (
+              {selectedSession.type !== 'strength' && selectedSession.type !== 'rest' && !justCompleted && (
                 <div className="bg-gray-50 rounded-xl p-4"><h4 className="font-semibold text-gray-800 mb-2">Session Details</h4><p className="text-sm text-gray-600">{selectedSession.type === 'intervals' ? 'Warm up for 15 minutes in Zone 2, then complete the interval set. Focus on maintaining consistent power through each effort. Recover fully between intervals. Cool down for 10 minutes.' : selectedSession.type === 'endurance' ? 'Keep this ride in Zone 2 throughout. You should be able to hold a conversation. Focus on smooth pedalling and staying relaxed. Practice your hydration and nutrition strategy.' : selectedSession.type === 'long' ? 'This is your key endurance builder. Stay in Zone 2, eat every 45 minutes after the first hour. Practice everything you will do on event day — same food, same pacing. If you have hills available, include them.' : 'Easy spin to keep the legs moving. No pressure on this one — high cadence, low resistance. Just enjoy the ride.'}</p></div>
               )}
             </div>
             <div className="p-4 border-t bg-white">
-              <button onClick={markComplete} disabled={completing} className={`w-full py-3 font-semibold rounded-xl transition flex items-center justify-center gap-2 ${sessionCompleted ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-brand-coral text-white hover:bg-brand-coral-dark'}`}>
-                {completing ? <Loader2 className="w-5 h-5 animate-spin" /> : sessionCompleted ? <><CheckCircle className="w-5 h-5" />Completed — Tap to Undo</> : <><CheckCircle className="w-5 h-5" />Mark as Complete</>}
-              </button>
+              {justCompleted ? (
+                <button onClick={() => setSelectedSession(null)} className="w-full py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">
+                  Close
+                </button>
+              ) : (
+                <button onClick={markComplete} disabled={completing} className={`w-full py-3 font-semibold rounded-xl transition flex items-center justify-center gap-2 ${sessionCompleted ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-brand-coral text-white hover:bg-brand-coral-dark'}`}>
+                  {completing ? <Loader2 className="w-5 h-5 animate-spin" /> : sessionCompleted ? <><CheckCircle className="w-5 h-5" />Completed — Tap to Undo</> : <><CheckCircle className="w-5 h-5" />Mark as Complete</>}
+                </button>
+              )}
             </div>
           </div>
         </div>
