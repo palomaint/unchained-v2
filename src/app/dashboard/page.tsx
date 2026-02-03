@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase, type Guest, type CompletedSession, type WeeklyContent } from '@/lib/supabase'
 import { getWeek, type Session } from '@/data/training-plans'
 import { LOGO_URL, UNCHAINED_START_DATE, WHATSAPP_GROUP_LINK } from '@/lib/brand'
-import { ChevronLeft, ChevronRight, CheckCircle, Clock, Mountain, Flame, MessageCircle, LogOut, Loader2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle, Clock, Mountain, Flame, MessageCircle, LogOut, Loader2, X, Map } from 'lucide-react'
 
 function getDaysUntil(): number {
   const event = new Date(UNCHAINED_START_DATE)
@@ -197,6 +197,14 @@ export default function DashboardPage() {
             <p className="text-sm text-green-700">{weeklyContent.nutrition_advice}</p>
           </div>
         )}
+
+        <button onClick={() => router.push('/course')} className="w-full bg-white rounded-2xl p-4 hover:shadow-md transition text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center"><Map className="w-5 h-5 text-purple-600" /></div>
+            <div><p className="font-medium text-gray-900">The Course</p><p className="text-sm text-gray-500">Route, climbs & day-by-day</p></div>
+            <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+          </div>
+        </button>
 
         <a href={WHATSAPP_GROUP_LINK} target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl p-4 hover:shadow-md transition">
           <div className="flex items-center gap-3">
