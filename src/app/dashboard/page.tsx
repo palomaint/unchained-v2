@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase, type Guest, type CompletedSession, type WeeklyContent } from '@/lib/supabase'
 import { getWeek, type Session } from '@/data/training-plans'
 import { LOGO_URL, UNCHAINED_START_DATE, WHATSAPP_GROUP_LINK } from '@/lib/brand'
-import { ChevronLeft, ChevronRight, CheckCircle, Clock, Mountain, Flame, MessageCircle, LogOut, Loader2, X, Map } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle, Clock, Mountain, Flame, MessageCircle, LogOut, Loader2, X, Map, RotateCcw, AlertTriangle } from 'lucide-react'
 
 function getDaysUntil(): number {
   const event = new Date(UNCHAINED_START_DATE)
@@ -63,6 +63,8 @@ export default function DashboardPage() {
   const [weeklyContent, setWeeklyContent] = useState<WeeklyContent | null>(null)
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [completing, setCompleting] = useState(false)
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     const guestId = localStorage.getItem('unchained_guest_id')
@@ -111,6 +113,15 @@ export default function DashboardPage() {
     setSelectedSession(null)
   }
 
+  const handleReset = async () => {
+    if (!guest) return
+    setResetting(true)
+    await supabase.from('completed_sessions').delete().eq('guest_id', guest.id)
+    setCompletedSessions([])
+    setResetting(false)
+    setShowResetModal(false)
+  }
+
   const handleLogout = () => { localStorage.removeItem('unchained_guest_id'); localStorage.removeItem('unchained_email'); router.push('/join') }
 
   if (loading || !guest) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 text-brand-coral animate-spin" /></div>
@@ -122,6 +133,7 @@ export default function DashboardPage() {
   const weekTotal = weekPlan.sessions.filter(s => s.type !== 'rest').length
   const progressPercent = weekTotal > 0 ? Math.round((weekCompleted / weekTotal) * 100) : 0
   const daysUntil = getDaysUntil()
+  const totalCompleted = completedSessions.length
   const phaseName = () => { if (viewWeek <= 3) return 'Foundation'; if (viewWeek === 4) return 'Recovery'; if (viewWeek <= 7) return 'Base Building'; if (viewWeek === 8) return 'Recovery'; if (viewWeek <= 10) return 'Build'; if (viewWeek === 11) return 'Sharpening'; return 'Taper' }
   const getStrengthRoutine = (name: string) => { if (name.includes('Strength A')) return strengthRoutines.A; if (name.includes('Strength B')) return strengthRoutines.B; return null }
   const sessionCompleted = selectedSession ? isCompleted(viewWeek, selectedSession.dayIndex) : false
@@ -131,9 +143,14 @@ export default function DashboardPage() {
       <header className="bg-white border-b px-4 py-3 sticky top-0 z-40">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <img src={LOGO_URL} alt="Pedal & Pause" className="h-8" />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">{guest.selected_distance}</span>
-            <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-gray-600"><LogOut className="w-5 h-5" /></button>
+            <button onClick={() => setShowResetModal(true)} className="p-2 text-gray-400 hover:text-orange-500" title="Reset Training">
+              <RotateCcw className="w-5 h-5" />
+            </button>
+            <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-gray-600" title="Logout">
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </header>
@@ -215,6 +232,7 @@ export default function DashboardPage() {
         </a>
       </main>
 
+      {/* Session Detail Modal */}
       {selectedSession && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
@@ -241,6 +259,29 @@ export default function DashboardPage() {
             <div className="p-4 border-t bg-white">
               <button onClick={markComplete} disabled={completing} className={`w-full py-3 font-semibold rounded-xl transition flex items-center justify-center gap-2 ${sessionCompleted ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-brand-coral text-white hover:bg-brand-coral-dark'}`}>
                 {completing ? <Loader2 className="w-5 h-5 animate-spin" /> : sessionCompleted ? <><CheckCircle className="w-5 h-5" />Completed — Tap to Undo</> : <><CheckCircle className="w-5 h-5" />Mark as Complete</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6 text-orange-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Reset Training Progress?</h3>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              This will delete all {totalCompleted} completed sessions. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowResetModal(false)} className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition">
+                Cancel
+              </button>
+              <button onClick={handleReset} disabled={resetting} className="flex-1 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition flex items-center justify-center gap-2">
+                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Reset'}
               </button>
             </div>
           </div>
